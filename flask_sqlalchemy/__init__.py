@@ -16,7 +16,6 @@ import time
 import functools
 import sqlalchemy
 from math import ceil
-from functools import partial
 from flask import _request_ctx_stack, abort
 from flask.signals import Namespace
 from operator import itemgetter
@@ -691,9 +690,20 @@ class SQLAlchemy(object):
         """
         if options is None:
             options = {}
+
         scopefunc = options.pop('scopefunc', None)
-        return orm.scoped_session(partial(self.create_session, options),
-                                  scopefunc=scopefunc)
+
+        session_class = type(
+            "SignallingSession", (SignallingSession, ), {
+                '_db': self,
+                '_options': options,
+            }
+        )
+
+        return orm.scoped_session(
+            orm.sessionmaker(class_=session_class),
+            scopefunc=scopefunc
+        )
 
     def create_session(self, options):
         """Creates the session.  The default implementation returns a
